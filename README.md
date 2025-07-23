@@ -61,10 +61,11 @@ We currently only provide the Tianmouc-VO dataset, which is already preprocessed
 ## Training
 
 
-To train . Model will be run on the validation split every 10k iterations
+To train the model, you can run the following command:
 ```
 python train.py --steps=240000 --lr=0.00008 --name=<your name>
 ```
+The training process requires about 5 days on a single NVIDIA RTX 3090 GPU.
 Example training logs can be seen at ```examples```
 
 ## Evaluation
