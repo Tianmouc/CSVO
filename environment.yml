@@ -1,4 +1,4 @@
-name: dpvo3
+name: csvo
 channels:
   - pyg
   - pytorch
