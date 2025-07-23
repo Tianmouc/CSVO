@@ -1,6 +1,6 @@
 # Complementary-pathway Spatial-enhanced Visual Odometry 
 This repository contains the source code for our paper:
-
+ 
 ```
 @article{Lin2025complementary,
   title={Complementary-pathway Spatial-enhanced Visual Odometry for Extreme Environments with Brain-inspired Vision Sensors},
