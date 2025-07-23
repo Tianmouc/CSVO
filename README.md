@@ -96,3 +96,4 @@ python evaluate_apollo.py --trials=5 --plot --save_trajectory
 
 ## Acknowledgements
 * This repository is built on [DPVO](https://github.com/princeton-vl/DPVO).
+* If you have problems on installation, you can refer to [DPVO's Issues](https://github.com/princeton-vl/DPVO/issues), which has a similar conda environment as ours.
