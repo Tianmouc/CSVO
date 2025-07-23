@@ -83,8 +83,14 @@ def main(image_path = '/data/zzx/DPVO_E2E/datasets/TartanAirNew/abandonedfactory
     cv2.imwrite(output_path, augmented_image)
     # print(f"增强后的图片已保存到: {output_path}")
 import os
+import argparse
+
 if __name__ == "__main__":
-    dataset_path = '/path/to/your/TartanAir'
+    parser = argparse.ArgumentParser(description="Script to process TartanAir dataset path.")
+    parser.add_argument("dataset_path", type=str, help="Path to the TartanAir dataset")
+    args = parser.parse_args()
+
+    dataset_path = args.dataset_path
     for test in test_split:
         image_dir = f"{dataset_path}/{test}/image_left"
         for image in os.listdir(image_dir):

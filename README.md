@@ -35,8 +35,9 @@ pip install .
 # download models and data (~2GB)
 ./download_models_and_data.sh
 ```
-## Training
-You can refer to https://github.com/castacks/tartanair_tools for the TartanAir dataset. 
+## Dataset Preprocessing
+### TartanAir
+You can refer to https://github.com/castacks/tartanair_tools for the TartanAir dataset. We suggest you to arrange the dataset as follows:
 
 ```Shell
 ├── datasets
@@ -48,6 +49,17 @@ You can refer to https://github.com/castacks/tartanair_tools for the TartanAir d
         ├── westerndesert
     ...
 ```
+
+### TartanAirAug
+We provide simple augmentation methods for TartanAir. You can run the following command to generate the augmented dataset:
+```Shell
+python augmentation/augmentation.py /path/to/TartanAir
+```
+
+### Tianmouc data
+We currently only provide the Tianmouc-VO dataset, which is already preprocessed. You can download it from [here](https://drive.google.com/file/d/1Z1y5h6n3Z2Y3J3XJrX8Z2Y3J3XJrX8/view?usp=sharing). If you want to record some Tianmouc data with your own Tianmouc camera, you can refer to [here](https://github.com/Tianmouc/tianmoucv_preview), where we provide the decoding and alignment code for Tianmouc camera.
+## Training
+
 
 To train . Model will be run on the validation split every 10k iterations
 ```
