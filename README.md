@@ -21,6 +21,7 @@ cd CSVO
 Create and activate the csvo anaconda environment
 ```
 conda env create -f environment.yml
+conda install cuda -c nvidia/label/cuda-11.3.1
 conda activate csvo
 ```
 
@@ -63,8 +64,9 @@ We currently only provide the Tianmouc-VO dataset, which is already preprocessed
 
 To train the model, you can run the following command:
 ```
-python train.py --steps=240000 --lr=0.00008 --name=<your name>
+python train.py --steps=240000 --lr=0.00008 --name=[dataset name]  --training_type  [input mode]
 ```
+        
 The training process requires about 5 days on a single NVIDIA RTX 3090 GPU.
 Example training logs can be seen at ```examples```
 

@@ -4,6 +4,7 @@ channels:
   - pytorch
   - conda-forge
   - defaults
+  - nvidia
 dependencies:
   - _libgcc_mutex=0.1=main
   - _openmp_mutex=5.1=1_gnu
@@ -159,3 +160,4 @@ dependencies:
     - soupsieve==2.3.2.post1
     - yacs==0.1.8
     - zstandard==0.18.0
+    - plotly
