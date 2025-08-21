@@ -16,7 +16,7 @@ import torch.nn.functional as F
 import time
 
 from csvo.net import VONet
-from evaluate_Tianmouc_high_splited import evaluate as validate
+from temp.CSVO.evaluate_Tianmouc import evaluate as validate
 import time
 
 def save_checkpoint(epoch, model, optimizer, scheduler, total_steps, filename='checkpoint.pth'):

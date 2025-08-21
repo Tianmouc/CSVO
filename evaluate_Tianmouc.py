@@ -177,7 +177,7 @@ def ate(traj_ref, traj_est, timestamps):
 
 
 @torch.no_grad()
-def evaluate(config, net, split="validation", trials=1, plot=False, save=False, path='', ablation="RGB", sdEncoderPath="sdEncoder.pth", window_size = 1, downsample=False):
+def evaluate(config, net, split="validation", trials=1, plot=False, save=False, path='', ablation="RGB", sdEncoderPath="sdEncoder.pth", window_size = 1, downsample=False, tianmouc_data_dir=None):
     path = "_".join(net.split("/")[-2:])
     if config is None:
         config = cfg
@@ -190,8 +190,11 @@ def evaluate(config, net, split="validation", trials=1, plot=False, save=False, 
 
     results = {}
     all_results = []
-    base_path = '/data/zzx/DPVO_E2E/datasets/TartanAirNew/tianmouc_splited_dataset_20250224/train'
-    base_path_1 = '/data/zzx/DPVO_E2E/datasets/TartanAirNew/tianmouc_splited_dataset_20250114/test'
+    if tianmouc_data_dir:
+        base_path_1 = tianmouc_data_dir
+    else:
+        # default
+        base_path_1 = '/data/zzx/DPVO_E2E/datasets/TartanAirNew/tianmouc_splited_dataset_20250114/test'
 
     scenes = [os.path.join(base_path_1, scene) for scene in os.listdir(base_path_1)]
     scenes = scenes[:3]
@@ -295,6 +298,7 @@ if __name__ == '__main__':
     parser.add_argument('--weights', default="dpvo.pth")
     parser.add_argument('--sdEncoder', default="sdEncoder.pth")
     parser.add_argument('--ablation_name', default="RGB")
+    parser.add_argument('--tianmouc_data_dir', default=None)
     parser.add_argument('--config', default="config/default.yaml")
     parser.add_argument('--split', default="validation")
     parser.add_argument('--trials', type=int, default=1)
@@ -330,6 +334,6 @@ if __name__ == '__main__':
         print(ate(traj_ref, traj_est, tstamps))
 
     else:
-        results = evaluate(cfg, args.weights, split=args.split, trials=args.trials, plot=args.plot, save=args.save_trajectory, path=args.path, ablation=args.ablation_name, sdEncoderPath = args.sdEncoder, window_size=args.window_size, downsample=args.downsample)
+        results = evaluate(cfg, args.weights, split=args.split, trials=args.trials, plot=args.plot, save=args.save_trajectory, path=args.path, ablation=args.ablation_name, sdEncoderPath = args.sdEncoder, window_size=args.window_size, downsample=args.downsample, tianmouc_data_dir=args.tianmouc_data_dir)
         for k in results:
             print(k, results[k])
