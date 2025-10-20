@@ -76,6 +76,7 @@ class FeatureFusion(nn.Module):
         x = self.conv(x)
         
         return x
+        
 class DualModalityFusion(nn.Module):
     def __init__(self, in_channels, out_channels):
         super(DualModalityFusion, self).__init__()
@@ -99,7 +100,7 @@ class DualModalityFusion(nn.Module):
         
         self.conv1x1_mod2_second = nn.Conv2d(out_channels, out_channels, kernel_size=1)
         self.bn3_mod2 = nn.BatchNorm2d(out_channels)
-        # self.featurefuser = FeatureFusion(out_channels, out_channels)
+        self.featurefuser = FeatureFusion(out_channels, out_channels)
 
     def forward(self, x1, x2):
         # 1x1卷积 + BatchNorm
@@ -340,16 +341,12 @@ def save_normalized_tensor_as_image(directory, tensor):
     print(f"Image saved as {new_file_name}")
 
 class Patchifier(nn.Module):
-    def __init__(self, patch_size=3, ablation='RGB', use_pretrained_sd=False):
+    def __init__(self, model_path, patch_size=3, ablation='RGB', use_pretrained_sd=False):
         super(Patchifier, self).__init__()
         self.patch_size = patch_size
         self.fnet = BasicEncoder4(input_dim=3, output_dim=128, norm_fn='instance')
-
-        model_data = torch.load('dpvo.pth', map_location=torch.device('cpu'))
-        filtered_state_dict = {k.replace("module.patchify.", ''): v for k, v in model_data.items() if 'patchify.fnet' in k}
-        self.fnet.load_state_dict(filtered_state_dict, strict=False)
+        
         if ablation != 'dpvo':
-            
             if not 'td' in ablation:
                 self.fnetSD = BasicEncoder4(input_dim=2, output_dim=128, norm_fn='instance')
                 self.fnetSD2 = BasicEncoder4(input_dim=2, output_dim=128, norm_fn='instance')
@@ -358,11 +355,7 @@ class Patchifier(nn.Module):
                 self.fnetSD2 = BasicEncoder4(input_dim=1, output_dim=128, norm_fn='instance')
 
         self.inet = BasicEncoder4(input_dim=3, output_dim=DIM, norm_fn='none')
-        model_data = torch.load('dpvo.pth', map_location=torch.device('cpu'))
-        filtered_state_dict = {k.replace("module.patchify.", ''): v for k, v in model_data.items() if 'patchify.inet' in k}
-        self.inet.load_state_dict(filtered_state_dict, strict=False)
         if ablation != 'dpvo':
-            
             if 'td' not in ablation:
                 self.inetSD = BasicEncoder4(input_dim=2, output_dim=DIM, norm_fn='none')
                 self.inetSD2 = BasicEncoder4(input_dim=2, output_dim=DIM, norm_fn='none')
@@ -370,13 +363,19 @@ class Patchifier(nn.Module):
                 self.inetSD = BasicEncoder4(input_dim=1, output_dim=DIM, norm_fn='none')
                 self.inetSD2 = BasicEncoder4(input_dim=1, output_dim=DIM, norm_fn='none')
 
-
         self.ablation = ablation
+        
         if ablation != 'dpvo':
             self.fuserf = DualModalityFusion(128,128)
             self.fuseri = DualModalityFusion(DIM, DIM)
 
-
+        if ablation == 'dpvo':
+            
+            model_data = torch.load(model_path, map_location=torch.device('cpu'))
+            filtered_state_dict = {k.replace("module.patchify.", ''): v for k, v in model_data.items() if 'patchify.fnet' in k}
+            self.fnet.load_state_dict(filtered_state_dict, strict=False)
+            filtered_state_dict = {k.replace("module.patchify.", ''): v for k, v in model_data.items() if 'patchify.inet' in k}
+            self.inet.load_state_dict(filtered_state_dict, strict=False)
 
     def __image_gradient(self, images):
         gray = ((images + 0.5) * (255.0 / 2)).sum(dim=2)
@@ -385,12 +384,14 @@ class Patchifier(nn.Module):
         g = torch.sqrt(dx**2 + dy**2)
         g = F.avg_pool2d(g, 4, 4)
         return g
+        
     def __SD_sobel(self, sdx, sdy):
         dx = sdx[:,:,0,:-1,:-1]
         dy = sdy[:,:,0,:-1,:-1]
         g = torch.sqrt(dx**2 + dy**2)
         g = F.avg_pool2d(g, 4, 4)
         return g
+        
     def forward(self, images, patches_per_image=80, disps=None, gradient_bias=False, return_color=False, time_surface0=None, time_surface1=None, sdr=None, sdl = None, events=None, rank=None, isTianmouc=None, augmented=False):
         """ extract patches from input images """
         if rank!=None:
@@ -399,7 +400,7 @@ class Patchifier(nn.Module):
             mycuda = 'cuda:0'
         #端到端训练时，如果不插帧，应该使用的ablation=rgb_taught
         n = images.shape[1]
-        if 'plana' in self.ablation.lower() or 'plana_td' in self.ablation.lower() :
+        if 'async' in self.ablation.lower() or 'async_td' in self.ablation.lower() :
             zero_index = []
             for i in range(images.shape[1]):
                 if (torch.all(images[0, i] == -0.5) and isTianmouc) or (random.randint(0,5) == 1 and not isTianmouc):
@@ -497,7 +498,6 @@ class Patchifier(nn.Module):
                     else:
                         imap[0][i] = imap1[0][count1]
                         count1 +=1
-
             
         elif "sd_only" == self.ablation.lower():
             sds = torch.cat((sdr, sdl), dim=2) 
@@ -509,7 +509,7 @@ class Patchifier(nn.Module):
         elif "dpvo" == self.ablation.lower():
             fmap = self.fnet(images) / 4.0
             imap = self.inet(images) / 4.0
-        elif self.ablation.lower() == "planb":
+        elif self.ablation.lower() == "sync":
             imagemap = self.fnet(images) / 4.0
             sds = torch.cat((sdr, sdl), dim=2)
             sdmap = self.fnetSD(sds) / 4.0
@@ -525,10 +525,10 @@ class Patchifier(nn.Module):
             raise ValueError("Ablation not permited")
         b, n, c, h, w = fmap.shape
         P = self.patch_size
-        if self.ablation == 'plana_td' or self.ablation == 'dpvo':
+        if self.ablation == 'async_td' or self.ablation == 'dpvo':
             gradient_bias = False
         if gradient_bias:
-            if self.ablation == 'plana' or self.ablation == 'sd_only' or self.ablation == 'plana_td':
+            if self.ablation == 'async' or self.ablation == 'sd_only' or self.ablation == 'async_td':
                 g = self.__SD_sobel(sdr,sdl)
             elif self.ablation == 'dpvo':
                 g = self.__image_gradient(images)

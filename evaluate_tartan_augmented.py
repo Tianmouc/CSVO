@@ -39,8 +39,8 @@ def video_iterator(imagedir, ext=".png", preload=True):
     for imfile in sorted(imfiles)[::STRIDE]:
         image = torch.from_numpy(blur_and_overexpose(imfile)).permute(2,0,1)
         count += 1
-        if 'image_left_plana' in imfile:
-            pathr = imfile.replace("image_left_plana", "SDR_frames_low_rate").replace("_left.png", '.npy')
+        if 'image_left_async' in imfile:
+            pathr = imfile.replace("image_left_async", "SDR_frames_low_rate").replace("_left.png", '.npy')
             pathl = imfile.replace("image_left_plana", "SDL_frames_low_rate").replace("_left.png", '.npy')
         elif 'overexpoture' in imfile:
             pathr = imfile.replace("image_left_overexpoture", "SDR_frames_low_rate").replace("_left.png", '.npy')
@@ -130,10 +130,10 @@ def evaluate(config, net, split="validation", trials=1, plot=False, save=False, 
             elif split == 'validation':
                 
                 traj_ref = osp.join("datasets/TartanAirNew", scene, "pose_left.txt")
-                if 'plana' in ablation.lower() or 'sd_only' in ablation.lower():
+                if 'async' in ablation.lower() or 'sd_only' in ablation.lower():
                     print("Successfully using plana's augmented images")
                     scene_path = os.path.join("datasets/TartanAirNew", scene, "image_left_overexpoture")
-                elif 'planb' in ablation.lower():
+                elif 'sync' in ablation.lower():
                     scene_path = os.path.join("datasets/TartanAirNew", scene, "image_left_overexpoture")
                 elif 'dpvo' in ablation.lower():
                     scene_path = os.path.join("datasets/TartanAirNew", scene, "image_left_overexpoture")

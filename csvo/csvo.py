@@ -104,7 +104,7 @@ class CSVO:
                     new_state_dict[k.replace('module.', '')] = v
             
             self.network = VONet(ablation=self.ablation, use_pretrained_sd=False, augmented=self.augmented)
-            self.network.load_state_dict(new_state_dict, strict=False)
+            self.network.load_state_dict(new_state_dict, strict=True)
             print("Weight Loaded")
         else:
             self.network = network
@@ -121,9 +121,6 @@ class CSVO:
 
         self.network.cuda()
         self.network.eval()
-
-
-
 
     def start_viewer(self):
         from dpviewer import Viewer

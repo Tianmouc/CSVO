@@ -120,9 +120,9 @@ def evaluate(config, net, split="validation", trials=1, plot=False, save=False, 
             elif split == 'validation':
                 
                 traj_ref = osp.join("datasets/TartanAirNew", scene, "pose_left.txt")
-                if 'plana' in ablation.lower() or 'sd_only' in ablation.lower():
+                if 'async' in ablation.lower() or 'sd_only' in ablation.lower():
                     scene_path = os.path.join("datasets/TartanAirNew", scene, "image_left_plana")
-                elif 'planb' in ablation.lower() or 'dpvo' in ablation.lower():
+                elif 'sync' in ablation.lower() or 'dpvo' in ablation.lower():
                     scene_path = os.path.join("datasets/TartanAirNew", scene, "image_left")
                 else:
                     raise ValueError("Ablation type not permitted!")
