@@ -73,6 +73,8 @@ Example training logs can be seen at ```examples```
 ## Evaluation
 We provide evaluation scripts for TartanAir, EuRoC, TUM-RGBD and ICL-NUIM. Up to date result logs on these datasets can be found in the `logs` directory.
 
+**you can use sh scripts under ./scripts flder for convenience**
+
 ### TartanAir:
 Results on the validation split and test set can be obtained with the command:
 ```
@@ -93,7 +95,6 @@ python evaluate_Tianmouc.py --trials=5 --plot --save_trajectory
 ```
 python evaluate_apollo.py --trials=5 --plot --save_trajectory
 ```
-
 
 
 ## Acknowledgements
