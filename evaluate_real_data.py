@@ -17,7 +17,6 @@ from csvo.utils import Timer
 from csvo.config import cfg
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
-# from Visualization.viz_sd import visualize_diff
 from scipy.signal import savgol_filter
 from csvo.data_readers.tartan import test_split as val_split
 from csvo.plot_utils import plot_trajectory, save_trajectory_tum_format, create_html, make_traj, best_plotmode
@@ -40,11 +39,7 @@ def smooth_trajectory(trajectory, window_size=11, poly_order=3):
         smoothed_trajectory[:, i] = savgol_filter(trajectory[:, i], window_size, poly_order)
     return smoothed_trajectory
 
-def normalize_tensor(tensor):
-    # 计算均值和标准差
-    normalized_tensor = tensor/2
     
-    return normalized_tensor
 def show_image(image, t=0):
     image = image.permute(1, 2, 0).cpu().numpy()
     cv2.imshow('image', image / 255.0)
@@ -113,8 +108,8 @@ def video_iterator(imagedir, ext=".png", preload=True, ablation='plana', downsam
             lx = ly
             ly = temp
 
-        sdr=lx
-        sdl=ly
+        sdr=lx/2
+        sdl=ly/2
         
         sds.append(sdr)
         if count == 0:
@@ -129,8 +124,8 @@ def video_iterator(imagedir, ext=".png", preload=True, ablation='plana', downsam
 
     print("dataset length:",len(data_list))
     if len(data_list)<25:
-        print('[evaluate_real_data.py]:warning no data found')
-        return None,None,None,None
+        print('[evaluate_real_data.py]:warning no data found1')
+        yield None,None,None,None
         
     for (image,sdr, sdl, intrinsics) in data_list:
         yield image.cuda(), sdr.cuda(), sdl.cuda(), intrinsics.cuda()
@@ -141,16 +136,16 @@ def run(imagedir, cfg, network, viz=False, ablation="RGB", sdEncoderPath="sdEnco
 
     for t, (image,sdr, sdl, intrinsics) in enumerate(video_iterator(imagedir,ablation=ablation, downsample=downsample)):
         # print("Done")
-        if intrinsics is None:
-            print('[evaluate_real_data.py]:warning no data found')
-            return
+        if image is None and sdr is None and sdl is None:
+            print('[evaluate_real_data.py]:warning no data found2')
+            return None,None
         if viz: 
             show_image(image, 1)
         if t % DOWN_SAMPLE_STRIDE != 0:
             image = torch.zeros_like(image)
         with Timer("SLAM", enabled=False):
             slam(t, image,sdr, sdl, intrinsics)
-        if t%20 == 0:
+        if t%100 == 0:
             print('[evaluate_real_data.py]vo running..:',t)
 
     for _ in range(12):
@@ -237,18 +232,18 @@ def evaluate(config,
             # run the slam system
             traj_est, tstamps = run(scene_path, config, net, ablation=ablation, sdEncoderPath=sdEncoderPath, downsample=downsample)
 
+            if traj_est is None:
+                print('[evaluate_real_data.py]:warning no data found3')
+                continue
+
             PERM = [1, 2, 0, 4, 5, 3, 6] # ned -> xyz
             traj_ref = np.loadtxt(traj_ref, delimiter=" ")[:, PERM]
             traj_ref /= 100
-
-            print(len(traj_ref),start_index,end_index)
             
             if not (start_index == -1 and end_index == -1):
                 traj_ref = traj_ref[start_index:end_index]
             if ablation=='dpvo' or downsample:
                 traj_ref = traj_ref[::DOWN_SAMPLE_STRIDE]
-
-            print(len(traj_ref))
 
             minLen = min(len(traj_ref), len(traj_est))
             traj_ref = traj_ref[:minLen]
@@ -298,6 +293,7 @@ def set_random_seed_all(seed=42):
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
     torch.cuda.manual_seed_all(seed)
+    
 if __name__ == '__main__':
 
     import argparse

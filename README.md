@@ -96,6 +96,19 @@ python evaluate_Tianmouc.py --trials=5 --plot --save_trajectory
 python evaluate_apollo.py --trials=5 --plot --save_trajectory
 ```
 
+## tmdat data inference support 
+
+please install tianmoucv first:
+```
+pip install tianmoucv
+```
+
+then try our demo:
+
+```
+sh ./scripts/demo.sh
+```
+
 
 ## Acknowledgements
 * This repository is built on [DPVO](https://github.com/princeton-vl/DPVO).

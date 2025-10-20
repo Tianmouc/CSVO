@@ -1,1 +1,1 @@
-python evaluate_real_data.py --weights=./ckpts/020000.pth --output_path=./results --ablation_name=csvo  --ablation_name async --save_trajectory --data_path '/data/zzx/DPVO_E2E/datasets/TartanAirNew/tianmouc_splited_dataset_20250224/test' --plot
+python evaluate_real_data.py --weights=./ckpts/020000.pth --output_path=./results --ablation_name=csvo  --ablation_name async --save_trajectory --data_path '/data/zzx/DPVO_E2E/datasets/TartanAirNew/tianmouc_splited_dataset_20250224/test' --plot --window_size 5
