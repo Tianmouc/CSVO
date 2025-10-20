@@ -1,4 +1,9 @@
 # Complementary-pathway Spatial-enhanced Visual Odometry 
+
+
+https://github.com/user-attachments/assets/d306e179-e878-405f-a035-ae09c2b3ef62
+
+
 This repository contains the source code for our paper:
  
 ```
