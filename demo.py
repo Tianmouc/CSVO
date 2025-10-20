@@ -21,11 +21,15 @@ from scipy.signal import savgol_filter
 from csvo.data_readers.tartan import test_split as val_split
 from csvo.plot_utils import plot_trajectory, save_trajectory_tum_format, create_html, make_traj, best_plotmode
 
+from tianmoucv.data import TianmoucDataReader
+
 test_split = \
     ["MH%03d"%i for i in range(8)] + \
     ["ME%03d"%i for i in range(8)]
 
 fx, fy, cx, cy = [707.8457,708.3163,389.9121,235.1899]
+intrinsics = torch.as_tensor([fx, fy, cx, cy])
+print('[demo.py] YOU MAY NEED TO UPDATE YOUR intrinsics METRIX')
 
 frames = []
 sds = []
@@ -45,141 +49,74 @@ def show_image(image, t=0):
     cv2.imshow('image', image / 255.0)
     cv2.waitKey(t)
 
-def video_iterator(imagedir, ext=".png", preload=True, ablation='plana', downsample=False):
+
+def images_to_video(frame_list,name,size=(640,320),Flip=True):
+    fps = 30        
+    ftmax = 1
+    ftmin = 0
+    out = cv2.VideoWriter(name,0x7634706d , fps, size)
+    for ft in frame_list:
+        ft = (ft-ftmin)/(ftmax-ftmin)
+        ft[ft>1]=1
+        ft[ft<0]=0
+        ft2 = (ft*255).astype(np.uint8)
+        out.write(ft2)
+    out.release()
     
-    
-    imfiles = glob.glob(osp.join(imagedir, "*{}".format(ext)))
-    data_list = []
-    timeSurface0 = []
-    timeSurface1 = []
-    count = 0
-    global frames
-    frames = []
-
-    print('[evaluate_real_data.py]imagedir:',imagedir)
-
-    for imfile in sorted(imfiles):
-
-        if ablation == 'sync':
-            assert not downsample
-            
-        index = int(imfile.split("/")[-1].replace(".png",""))
-        #prepare rgb
-        if (downsample or ablation == 'dpvo') and index % DOWN_SAMPLE_STRIDE != 0:
-                continue
-
-        if ablation == 'sync':
-            if int(imfile.split("/")[-1].replace(".png","")) % 25 != 0:
-                frames.append(imfile)
-                image = torch.from_numpy(cv2.imread(imfile)).permute(2,0,1)
-                image[True] = 0
-            else:
-                frames.append(imfile)
-                image = torch.from_numpy(cv2.imread(imfile)).permute(2,0,1)
-        else:
-            frames.append(imfile)
-            image = torch.from_numpy(cv2.imread(imfile)).permute(2,0,1)
-            
-        image = torch.flip(image, dims=[1])
-
-        
-        if 'image_left_plana' in imfile:
-            pathr = imfile.replace("image_left_plana", "SDR_frames_low_rate").replace(".png", '.npy')
-            pathl = imfile.replace("image_left_plana", "SDL_frames_low_rate").replace(".png", '.npy')
-        elif ablation in ['dpvo', 'async', 'sync']:
-            pathr = imfile.replace("image_left_aligned_high", "SD_frames_aligned_high").replace(".png", '.npy')
-        elif ablation == 'plana_td':
-            pathr = imfile.replace("image_left_aligned_high", "TD_frames_aligned_high").replace(".png", '.npy')
-        else:
-            raise ValueError("Ablation type not permitted!")
-
-        if ablation == 'plana_td':
-            lx = torch.from_numpy(np.load(pathr)[:,:])
-            lx = torch.flip(lx, dims=[1])
-            lx *=5
-            ly = lx.clone()
-        else:
-            lx = torch.from_numpy(np.load(pathr)[:,:,0])
-            ly = torch.from_numpy(np.load(pathr)[:,:,1])
-            #SDL,SDR翻转操作，五步
-            lx = torch.flip(lx, dims=[1])
-            ly = torch.flip(ly, dims=[1])
-            temp = lx
-            lx = ly
-            ly = temp
-
-        sdr=lx/2
-        sdl=ly/2
-        
-        sds.append(sdr)
-        if count == 0:
-            print('[evaluate_real_data.py]sdl.shape:',sdl.shape)
-        if sdr.shape[0] != 1:
-            sdr = sdr.unsqueeze(0).unsqueeze(0).unsqueeze(0).float()
-            sdl = sdl.unsqueeze(0).unsqueeze(0).unsqueeze(0).float()
-            
-        intrinsics = torch.as_tensor([fx, fy, cx, cy])
-        data_list.append((image,sdr, sdl, intrinsics))
-        count += 1
-
-    print("dataset length:",len(data_list))
-    if len(data_list)<25:
-        print('[evaluate_real_data.py]:warning no data found1')
-        yield None,None,None,None
-        
-    for (image,sdr, sdl, intrinsics) in data_list:
-        yield image.cuda(), sdr.cuda(), sdl.cuda(), intrinsics.cuda()
-
 @torch.no_grad()
-def run(imagedir, cfg, network, viz=False, ablation="RGB", sdEncoderPath="sdEncoder.pth", downsample=False):
+def run(data_path, cfg, network, viz=False, ablation="RGB", sdEncoderPath="sdEncoder.pth", downsample=False, args=None):
+    
     slam = CSVO(cfg, network, ht=320, wd=640, viz=viz, ablation=ablation, sdEncoderPath=sdEncoderPath, isTianmouc=True)
 
-    for t, (image,sdr, sdl, intrinsics) in enumerate(video_iterator(imagedir,ablation=ablation, downsample=downsample)):
-        # print("Done")
-        if image is None and sdr is None and sdl is None:
-            print('[evaluate_real_data.py]:warning no data found2')
-            return None,None
-        if viz: 
-            show_image(image, 1)
-        if t % DOWN_SAMPLE_STRIDE != 0:
-            image = torch.zeros_like(image)
-        with Timer("SLAM", enabled=False):
-            slam(t, image,sdr, sdl, intrinsics)
-        if t%20 == 0:
-            print('[evaluate_real_data.py]vo running..:',t)
+    dataset = TianmoucDataReader(data_path,uniformSampler=True,strict = True,print_info=True)
+    i = 0
+    device = torch.device('cuda')
+
+    start_index = args.start_index
+    end_index = args.end_index
+    frame_list = []
+
+    if start_index == -1:
+        start_index = 0
+    if end_index == -1:
+        end_index = len(dataset)-1
+    
+    with Timer("SLAM", enabled=True):
+        for index in range(start_index,end_index):
+
+            sample = dataset[index] 
+            if sample is None:
+                continue 
+                
+            tsdiff = sample['tsdiff'].to(device)
+            image = sample['F0_HDR'].permute(2,0,1).to(device)
+
+            frame_list.append(sample['F0_HDR'].numpy()[:,:,[2,1,0]])
+        
+            if viz: 
+                show_image(image, 1)
+    
+            for t in range(0,tsdiff.shape[1],DOWN_SAMPLE_STRIDE):
+            
+                if t > 0:
+                    image = torch.zeros_like(image).to(device)
+    
+                sdl = tsdiff[0:1,t:t+1,...].unsqueeze(0)
+                sdr = tsdiff[1:2,t:t+1,...].unsqueeze(0)
+                    
+                slam(t, image, sdr, sdl, intrinsics.to(device))
+                
+            if index%20 == 0:
+                print('[evaluate_real_data.py]vo running..:',index,'/',len(dataset))
 
     for _ in range(12):
         slam.update()
 
-    return slam.terminate()
-
-
-def ate(traj_ref, traj_est, timestamps):
-    import evo
-    import evo.main_ape as main_ape
-    from evo.core.trajectory import PoseTrajectory3D
-    from evo.core.metrics import PoseRelation
-
-    traj_est = PoseTrajectory3D(
-        positions_xyz=traj_est[:,:3],
-        orientations_quat_wxyz=traj_est[:,3:],
-        timestamps=timestamps)
-
-    traj_ref = PoseTrajectory3D(
-        positions_xyz=traj_ref[:,:3],
-        orientations_quat_wxyz=traj_ref[:,3:],
-        timestamps=timestamps)
-    try:
-        result = main_ape.ape(traj_ref, traj_est, est_name='traj', 
-            pose_relation=PoseRelation.translation_part, align=True, correct_scale=True)
-    except:
-        print("[CSVO/evaluate_real_data.py] ERROR: Alignment failed")
-        return 1000
-    return result.stats["rmse"]
+    return slam.terminate(),frame_list
 
 
 @torch.no_grad()
-def evaluate(config, 
+def run_tmdat(config, 
              net, 
              split="validation", 
              trials=1, 
@@ -197,92 +134,44 @@ def evaluate(config,
         config = cfg
         config.merge_from_file("config/default.yaml")
 
-    results = {}
-    all_results = []
-    
-    scenes = [os.path.join(data_path, scene) for scene in os.listdir(data_path)]
+    scene_name = data_path.split('/')[-1]
 
-    for i, scene in enumerate(scenes):
-        scene_name = scene.replace("/", '')
-        results[scene] = []
+    start_index = args.start_index
+    end_index = args.end_index
 
-        start_index = args.start_index
-        end_index = args.end_index
-
-        #Path(output_path).mkdir(exist_ok=True)
-        foldername = "_".join(net.split("/")[-2:])
-        foldername += scene.split("/")[-1]
-        foldername += "_start_{}__end_{}".format(start_index, end_index)
-        foldername = foldername.replace(".pth", "_")
-        output_path_sample = os.path.join(output_path, foldername)
-        Path(output_path_sample).mkdir(exist_ok=True)
+    foldername = "_".join(net.split("/")[-2:])
+    foldername += scene_name
+    foldername += "_start_{}__end_{}".format(start_index, end_index)
+    foldername = foldername.replace(".pth", "_")
+    output_path_sample = os.path.join(output_path, foldername)
+    Path(output_path_sample).mkdir(exist_ok=True)
         
-        for j in range(trials):
+    for j in range(trials):
 
-            traj_ref = osp.join(scene, "pose_left.txt")
-            if ablation.lower() == 'sd_only':
-                scene_path = os.path.join( scene, "SD_frames_aligned_high")
-            if ablation.lower() == 'td_only':
-                scene_path = os.path.join( scene, "TD_frames_aligned_high")
-            elif ablation.lower() in['async','sync']:
-                scene_path = os.path.join(scene, "image_left_aligned_high")
-            else:
-                raise ValueError("Ablation type not permitted! please setablation name in [sd_only, td_only, async, sync]")
+        # run the slam system
+        slam_result, frame_list= run(data_path, config, net, ablation=ablation, sdEncoderPath=sdEncoderPath, downsample=downsample, args=args)
 
-            # run the slam system
-            traj_est, tstamps = run(scene_path, config, net, ablation=ablation, sdEncoderPath=sdEncoderPath, downsample=downsample)
+        traj_est, tstamps  = slam_result
 
-            if traj_est is None:
-                print('[evaluate_real_data.py]:warning no data found3')
-                continue
+        if traj_est is None:
+            print('[evaluate_real_data.py]:warning no data found3')
+            continue
 
-            PERM = [1, 2, 0, 4, 5, 3, 6] # ned -> xyz
-            traj_ref = np.loadtxt(traj_ref, delimiter=" ")[:, PERM]
-            traj_ref /= 100
-            
-            if not (start_index == -1 and end_index == -1):
-                traj_ref = traj_ref[start_index:end_index]
-            if ablation=='dpvo' or downsample:
-                traj_ref = traj_ref[::DOWN_SAMPLE_STRIDE]
+        PERM = [1, 2, 0, 4, 5, 3, 6] # ned -> xyz
 
-            minLen = min(len(traj_ref), len(traj_est))
-            traj_ref = traj_ref[:minLen]
-            traj_est = traj_est[:minLen]
-            tstamps = tstamps[:minLen]
-            ate_score = ate(traj_ref, traj_est, tstamps)
-            all_results.append(ate_score)
-            results[scene].append(ate_score)
-
-            if plot:
-                try:
-                    scene_name = scene.split("/")[-1]
-                    Path(os.path.join(output_path_sample, 'trajectory_plots')).mkdir(exist_ok=True)
-                    Path(os.path.join(output_path_sample, 'trajectory_htmls')).mkdir(exist_ok=True)
-                    pred_xyz, gt_xyz = plot_trajectory((traj_est, tstamps), (traj_ref, tstamps), f"Tianmouc {scene_name.replace('_', ' ')} Trial #{j+1} (ATE: {ate_score:.03f})",
+        if plot:
+            Path(os.path.join(output_path_sample, 'trajectory_plots')).mkdir(exist_ok=True)
+            Path(os.path.join(output_path_sample, 'trajectory_htmls')).mkdir(exist_ok=True)
+            images_to_video(frame_list,os.path.join(output_path_sample, 'rgb.mp4'),size=(640,320),Flip=True)
+            pred_xyz, gt_xyz = plot_trajectory((traj_est, tstamps), None, f"Tianmouc {scene_name.replace('_', ' ')} Trial #{j+1}",
                                     os.path.join(output_path_sample, 'trajectory_plots',f"Tianmouc_{scene_name}_Trial{j+1:02d}.pdf"), align=True, correct_scale=True)
-                    create_html(pred_xyz, gt_xyz, os.path.join(output_path_sample, 'trajectory_htmls',f"Tianmouc_{scene_name}_Trial{j+1:02d}.html"))
-                except:
-                    print("[CSVO/evaluate_real_data.py] ERROR: Alignment failed")
-            if save:
-                Path(os.path.join(output_path_sample, 'saved_trajectories')).mkdir(exist_ok=True)
-                save_trajectory_tum_format((traj_est, tstamps), os.path.join(output_path_sample, 'saved_trajectories',f"Tianmouc_{scene_name}_Trial{j+1:02d}.txt"))
-            print(j,"done")
-            # return
+            create_html(pred_xyz, gt_xyz, os.path.join(output_path_sample, 'trajectory_htmls',f"Tianmouc_{scene_name}_Trial{j+1:02d}.html"))
+        if save:
+            Path(os.path.join(output_path_sample, 'saved_trajectories')).mkdir(exist_ok=True)
+            save_trajectory_tum_format((traj_est, tstamps), os.path.join(output_path_sample, 'saved_trajectories',f"Tianmouc_{scene_name}_Trial{j+1:02d}.txt"))
+        print(j,"done")
 
-        print(scene, sorted(results[scene]))
-
-    results_dict = dict([("Tartan/{}".format(k), np.median(v)) for (k, v) in results.items()])
-
-    xs = []
-    for scene in results:
-        x = np.median(results[scene])
-        xs.append(x)
-
-    ates = list(all_results)
-    results_dict["AUC"] = np.maximum(1 - np.array(ates), 0).mean()
-    results_dict["AVG"] = np.mean(xs)
-
-    return results_dict
+    return
 
 def set_random_seed_all(seed=42):
     random.seed(seed)
@@ -323,25 +212,15 @@ if __name__ == '__main__':
     print("Running with config...")
     print(cfg)
     set_random_seed_all()
-    # torch.manual_seed(1234)
-    if args.start_index != -1:
-        start_index = args.start_index
-        end_index = args.end_index
 
+    results = run_tmdat(cfg, args.weights, split=args.split,
+                           trials=args.trials, plot=args.plot,
+                           save=args.save_trajectory, 
+                           data_path = args.data_path, 
+                           output_path = args.output_path, 
+                           ablation=args.ablation_name,
+                           sdEncoderPath = args.sdEncoder,
+                           window_size=args.window_size, 
+                           downsample=args.downsample,
+                           args=args)
 
-    if args.id >= 0:
-        scene_path = os.path.join("datasets/mono", test_split[args.id])
-        traj_est, tstamps = run(scene_path, cfg, args.weights, viz=args.viz)
-
-        traj_ref = osp.join("datasets/mono", "mono_gt", test_split[args.id] + ".txt")
-        traj_ref = np.loadtxt(traj_ref, delimiter=" ")[:,[1, 2, 0, 4, 5, 3, 6]]
-
-        # do evaluation
-        print(ate(traj_ref, traj_est, tstamps))
-
-    else:
-        results = evaluate(cfg, args.weights, split=args.split, trials=args.trials, plot=args.plot,
-                           save=args.save_trajectory, data_path = args.data_path, output_path = args.output_path, 
-                           ablation=args.ablation_name, sdEncoderPath = args.sdEncoder, window_size=args.window_size, downsample=args.downsample,args=args)
-        for k in results:
-            print(k, results[k])

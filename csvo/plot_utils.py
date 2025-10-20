@@ -15,52 +15,66 @@ from scipy.interpolate import make_interp_spline
 def create_html(traj1, traj2, file_path):
     # Extract x, y, z coordinates from the trajectories
     x1, y1, z1 = zip(*traj1)
-    x2, y2, z2 = zip(*traj2)
     
     # Generate smooth trajectory points using spline interpolation
     t1 = np.linspace(0, len(traj1) - 1, len(traj1))
-    t2 = np.linspace(0, len(traj2) - 1, len(traj2))
     smooth_t1 = np.linspace(0, len(traj1) - 1, 100)  # More points for smoother curve
-    smooth_t2 = np.linspace(0, len(traj2) - 1, 100)
-    
     spl_x1 = make_interp_spline(t1, x1, k=3)
     spl_y1 = make_interp_spline(t1, y1, k=3)
     spl_z1 = make_interp_spline(t1, z1, k=3)
-    
-    spl_x2 = make_interp_spline(t2, x2, k=3)
-    spl_y2 = make_interp_spline(t2, y2, k=3)
-    spl_z2 = make_interp_spline(t2, z2, k=3)
-    
     smooth_x1 = spl_x1(smooth_t1)
     smooth_y1 = spl_y1(smooth_t1)
     smooth_z1 = spl_z1(smooth_t1)
     
-    smooth_x2 = spl_x2(smooth_t2)
-    smooth_y2 = spl_y2(smooth_t2)
-    smooth_z2 = spl_z2(smooth_t2)
+    if traj2 is not None:
+        x2, y2, z2 = zip(*traj2)
+        
+        t2 = np.linspace(0, len(traj2) - 1, len(traj2))
+        smooth_t2 = np.linspace(0, len(traj2) - 1, 100)
+    
+        spl_x2 = make_interp_spline(t2, x2, k=3)
+        spl_y2 = make_interp_spline(t2, y2, k=3)
+        spl_z2 = make_interp_spline(t2, z2, k=3)
+        
+        smooth_x2 = spl_x2(smooth_t2)
+        smooth_y2 = spl_y2(smooth_t2)
+        smooth_z2 = spl_z2(smooth_t2)
     
     # Create a 3D scatter plot with two lines
-    fig = go.Figure(data=[
-        go.Scatter3d(
-            x=smooth_x1,
-            y=smooth_y1,
-            z=smooth_z1,
-            mode='lines+markers',
-            name='Trajectory 1 (Blue Solid Line)',
-            line=dict(color='blue', width=2),
-            marker=dict(size=1, color='blue')
-        ),
-        go.Scatter3d(
-            x=smooth_x2,
-            y=smooth_y2,
-            z=smooth_z2,
-            mode='lines+markers',
-            name='Trajectory 2 (Gray Dashed Line)',
-            line=dict(color='gray', width=2, dash='dash'),
-            marker=dict(size=1, color='gray'),
-        )
-    ])
-
+    if traj2 is not None:
+        fig = go.Figure(data=[
+            go.Scatter3d(
+                x=smooth_x1,
+                y=smooth_y1,
+                z=smooth_z1,
+                mode='lines+markers',
+                name='Trajectory 1 (Blue Solid Line)',
+                line=dict(color='blue', width=2),
+                marker=dict(size=1, color='blue')
+            ),
+            go.Scatter3d(
+                x=smooth_x2,
+                y=smooth_y2,
+                z=smooth_z2,
+                mode='lines+markers',
+                name='Trajectory 2 (Gray Dashed Line)',
+                line=dict(color='gray', width=2, dash='dash'),
+                marker=dict(size=1, color='gray'),
+            )
+        ])
+    else:
+        fig = go.Figure(data=[
+            go.Scatter3d(
+                x=smooth_x1,
+                y=smooth_y1,
+                z=smooth_z1,
+                mode='lines+markers',
+                name='Trajectory 1 (Blue Solid Line)',
+                line=dict(color='blue', width=2),
+                marker=dict(size=1, color='blue')
+            )
+        ]) 
+    
     # Add labels
     fig.update_layout(
         title='3D Trajectory with Two Lines',

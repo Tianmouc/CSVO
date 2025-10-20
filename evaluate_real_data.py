@@ -132,21 +132,23 @@ def video_iterator(imagedir, ext=".png", preload=True, ablation='plana', downsam
 
 @torch.no_grad()
 def run(imagedir, cfg, network, viz=False, ablation="RGB", sdEncoderPath="sdEncoder.pth", downsample=False):
+    
     slam = CSVO(cfg, network, ht=320, wd=640, viz=viz, ablation=ablation, sdEncoderPath=sdEncoderPath, isTianmouc=True)
 
-    for t, (image,sdr, sdl, intrinsics) in enumerate(video_iterator(imagedir,ablation=ablation, downsample=downsample)):
-        # print("Done")
-        if image is None and sdr is None and sdl is None:
-            print('[evaluate_real_data.py]:warning no data found2')
-            return None,None
-        if viz: 
-            show_image(image, 1)
-        if t % DOWN_SAMPLE_STRIDE != 0:
-            image = torch.zeros_like(image)
-        with Timer("SLAM", enabled=False):
+    with Timer("SLAM", enabled=False):
+        for t, (image,sdr, sdl, intrinsics) in enumerate(video_iterator(imagedir,ablation=ablation, downsample=downsample)):
+            # print("Done")
+            if image is None and sdr is None and sdl is None:
+                print('[evaluate_real_data.py]:warning no data found2')
+                return None,None
+            if viz: 
+                show_image(image, 1)
+            if t % DOWN_SAMPLE_STRIDE != 0:
+                image = torch.zeros_like(image)
+            
             slam(t, image,sdr, sdl, intrinsics)
-        if t%100 == 0:
-            print('[evaluate_real_data.py]vo running..:',t)
+            if t%100 == 0:
+                print('[evaluate_real_data.py]vo running..:',t)
 
     for _ in range(12):
         slam.update()
