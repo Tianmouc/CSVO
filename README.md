@@ -111,7 +111,7 @@ pip install tianmoucv
 then try our demo:
 
 ```
-sh ./scripts/demo.sh
+sh ./scripts/run_demo.sh
 ```
 
 
