@@ -87,13 +87,17 @@ python evaluate_tartan.py --trials=5 --split=validation --plot --save_trajectory
 ```
 
 ### TartanAirAug (Augmented data of TartanAir):
+To run CSVO and our baseline (DPVO), you can directly run these scripts:
 ```
-python evaluate_tartan_augmented.py --trials=5 --plot --save_trajectory
+bash scrips/evaluate_tartan_augmented_csvo.sh
+bash scrips/evaluate_tartan_augmented_dpvo.sh
 ```
 
 ### Tianmouc-VO:
 ```
-python evaluate_Tianmouc.py --trials=5 --plot --save_trajectory
+To run CSVO and our baseline (DPVO), you can directly run these scripts:
+bash scrips/evaluate_Tianmouc_csvo.sh
+bash scrips/evaluate_Tianmouc_dpvo.sh
 ```
 
 ### Apollo:
@@ -111,7 +115,7 @@ pip install tianmoucv
 then try our demo:
 
 ```
-sh ./scripts/run_demo.sh
+bash ./scripts/run_demo.sh
 ```
 
 
