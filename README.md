@@ -76,7 +76,7 @@ The training process requires about 5 days on a single NVIDIA RTX 3090 GPU.
 Example training logs can be seen at ```examples```
 
 ## Evaluation
-We provide evaluation scripts for TartanAir, EuRoC, TUM-RGBD and ICL-NUIM. Up to date result logs on these datasets can be found in the `logs` directory.
+We provide evaluation scripts for TartanAir, TianmoucVO, and Apollo. Up to date result logs on these datasets can be found in the `logs` directory.
 
 **you can use sh scripts under ./scripts flder for convenience**
 
